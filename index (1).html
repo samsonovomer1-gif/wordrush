@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0d1021">
+<title>Word Rush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: one-screen arcade app. Home → play → result. Single dark theme by choice. */
+:root{
+  --bg:#0d1021;
+  --panel:#171b33;
+  --line:#2a3058;
+  --ink:#eef0ff;
+  --muted:#8b91bd;
+  --hot:#ff5a36;
+  --volt:#ffd23f;
+  --good:#2ee59d;
+  --bad:#ff3b6b;
+  --display:'Bungee', 'Rubik', system-ui, sans-serif;
+  --body:'Rubik', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;overflow-x:hidden;
+  background-image:radial-gradient(circle at 15% -10%, rgba(255,90,54,.18), transparent 45%),radial-gradient(circle at 110% 110%, rgba(255,210,63,.10), transparent 45%);
+  background-attachment:fixed}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:3px solid var(--volt);outline-offset:2px}
+.app{max-width:520px;margin:0 auto;min-height:100%;padding:16px 16px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px}
+.screen{display:none;flex-direction:column;gap:16px;flex:1}
+.screen.on{display:flex}
+.en{direction:ltr;unicode-bidi:isolate}
+.num{font-variant-numeric:tabular-nums}
+
+/* Home */
+.logo{font-family:var(--display);font-size:clamp(44px,13vw,64px);line-height:.95;margin:8px 0 0;letter-spacing:.5px;direction:ltr;text-align:right}
+.logo span{color:var(--hot);display:block;text-shadow:0 0 24px rgba(255,90,54,.45)}
+.tag{color:var(--muted);margin:0}
+.countdown{align-self:flex-start;display:inline-flex;gap:8px;align-items:center;background:var(--volt);color:#1a1400;font-weight:800;padding:6px 12px;border-radius:999px;font-size:15px}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px}
+.ring{width:118px;height:118px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring b{font-family:var(--display);font-size:28px;line-height:1}
+.ring small{color:var(--muted);font-size:12px}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--display);font-size:20px;line-height:1.1}
+.stat small{color:var(--muted);font-size:13px}
+.rank{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--volt),var(--hot));border-radius:99px;transition:width .5s}
+.modes{display:grid;gap:12px}
+.mode{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:14px;text-align:right;padding:16px;border-radius:18px;background:var(--panel);border:1px solid var(--line);transition:transform .12s,border-color .12s}
+.mode:active{transform:scale(.98)}
+.mode:hover{border-color:var(--hot)}
+.mode .ic{width:52px;height:52px;border-radius:14px;display:grid;place-content:center;font-family:var(--display);font-size:22px}
+.mode h3{margin:0;font-size:19px;font-weight:800}
+.mode p{margin:0;color:var(--muted);font-size:14px}
+.mode .go{font-family:var(--display);color:var(--muted);font-size:20px}
+.mode.main{background:linear-gradient(135deg,var(--hot),#ff8a3d);border:0;color:#fff}
+.mode.main p{color:rgba(255,255,255,.85)}
+.mode.main .ic{background:rgba(0,0,0,.18)}
+.mode.main .go{color:#fff}
+.ic.blitz{background:rgba(255,210,63,.15);color:var(--volt)}
+.ic.fix{background:rgba(255,59,107,.15);color:var(--bad)}
+.mode[disabled]{opacity:.45;pointer-events:none}
+.links{display:flex;justify-content:space-between;gap:12px}
+.link{color:var(--muted);text-decoration:underline;text-underline-offset:3px;padding:6px 0;font-size:15px}
+
+/* Play */
+.top{display:flex;align-items:center;gap:10px}
+.x{width:42px;height:42px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:20px;display:grid;place-content:center}
+.pill{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-family:var(--display);font-size:16px}
+.pill.streak.hot{border-color:var(--hot);color:var(--hot);box-shadow:0 0 16px rgba(255,90,54,.35)}
+.pill.timer{margin-inline-start:auto;color:var(--volt)}
+.pill.timer.low{color:var(--bad);border-color:var(--bad);animation:pulse .5s infinite alternate}
+.spacer{flex:1}
+.mult{font-size:12px;background:var(--hot);color:#fff;border-radius:6px;padding:1px 5px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:28px 20px 24px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;overflow:hidden}
+.card.good{border-color:var(--good);box-shadow:0 0 0 3px rgba(46,229,157,.18)}
+.card.bad{border-color:var(--bad);box-shadow:0 0 0 3px rgba(255,59,107,.18)}
+.card.shake{animation:shake .4s}
+.card.pop{animation:pop .3s}
+.pos{font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.word{font-family:var(--body);font-weight:800;font-size:clamp(34px,10vw,48px);line-height:1.1;word-break:break-word;margin:4px 0}
+.hint{display:none;direction:ltr;text-align:left;font-size:18px;line-height:1.5;color:var(--ink);background:var(--bg);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;width:100%}
+.hint.on{display:block}
+.hint mark{background:none;color:var(--volt);font-weight:800;border-bottom:2px solid var(--volt)}
+.hint small{display:block;direction:rtl;text-align:right;color:var(--muted);font-size:12px;margin-bottom:4px}
+.chartbox{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:14px 14px 10px;display:flex;flex-direction:column;gap:8px}
+.chartbox h3{margin:0;font-size:16px;font-weight:800}
+.chartbox svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;color:var(--muted);font-size:12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:middle}
+.empty{color:var(--muted);font-size:14px;padding:18px 0;text-align:center}
+.answer{width:100%;font:inherit;font-size:22px;text-align:center;padding:14px 16px;border-radius:16px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+.answer:focus{border-color:var(--hot);outline:none}
+.answer::placeholder{color:#5a6091}
+.row{display:flex;gap:10px;width:100%}
+.btn{flex:1;padding:14px;border-radius:14px;font-weight:800;font-size:17px;background:var(--line);transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--hot);color:#fff;flex:2}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.btn.small{flex:0 0 auto;padding:10px 14px;font-size:15px}
+.fb{display:none;width:100%;flex-direction:column;gap:10px;align-items:center}
+.fb.on{display:flex}
+.verdict{font-family:var(--display);font-size:26px}
+.verdict.good{color:var(--good)}
+.verdict.close{color:var(--volt)}
+.verdict.bad{color:var(--bad)}
+.meaning{font-size:24px;font-weight:800}
+.meaning small{display:block;font-size:14px;color:var(--muted);font-weight:500}
+.you{color:var(--muted);font-size:15px}
+.you s{color:var(--bad)}
+.gain{position:absolute;top:14px;inset-inline-start:16px;font-family:var(--display);color:var(--volt);font-size:20px;opacity:0}
+.gain.go{animation:rise .9s ease-out}
+.under{display:flex;justify-content:space-between;color:var(--muted);font-size:14px}
+
+/* Result */
+.big{font-family:var(--display);font-size:64px;line-height:1;color:var(--volt);text-align:center;margin:8px 0}
+.center{text-align:center}
+h2{font-family:var(--display);font-size:28px;margin:8px 0 0;text-align:center;text-wrap:balance;font-weight:400}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:6px 14px;max-height:46vh;overflow:auto}
+.li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li .en{font-weight:700}
+.li span:last-child{color:var(--muted);text-align:left}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-inline-end:8px;vertical-align:middle}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{padding:7px 12px;border-radius:999px;border:1px solid var(--line);font-size:14px;color:var(--muted)}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+.search{width:100%;font:inherit;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+
+/* Dialog */
+.modal{position:fixed;inset:0;background:rgba(5,6,15,.75);display:none;place-items:center;padding:20px;z-index:20}
+.modal.on{display:grid}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;max-width:360px;display:flex;flex-direction:column;gap:14px}
+.modal h3{margin:0}
+.toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-250%);background:var(--volt);color:#1a1400;font-weight:800;padding:10px 18px;border-radius:999px;z-index:30;transition:transform .35s;white-space:nowrap}
+.toast.on{transform:translate(-50%,0)}
+canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:25;width:100%;height:100%}
+
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes rise{0%{opacity:0;transform:translateY(8px)}20%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+@keyframes pulse{to{opacity:.55}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+<main class="app">
+
+  <!-- HOME -->
+  <section class="screen on" id="home">
+    <h1 class="logo">WORD<span>RUSH</span></h1>
+    <p class="tag">480 מילים. מבחן אחד. בוא נסגור את זה.</p>
+    <div class="countdown" id="countdown"></div>
+    <div class="hero">
+      <div class="ring">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="#2a3058" stroke-width="12"/><circle id="ringArc" cx="60" cy="60" r="52" fill="none" stroke="#2ee59d" stroke-width="12" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .8s"/></svg>
+        <div class="center"><b class="num" id="hScore">0</b><small>ציון כללי</small></div>
+      </div>
+      <div class="statgrid">
+        <div class="stat"><b class="num" id="hMastered">0</b><small>מילים מתוך 480</small></div>
+        <div class="stat"><b class="num" id="hStreak">0</b><small>רצף שיא</small></div>
+        
+        <div class="rank">
+          <div class="under"><span class="en" id="hRank" style="font-family:var(--display);color:var(--ink)">ROOKIE</span><span class="num" id="hXp">0 XP</span></div>
+          <div class="bar"><i id="hBar" style="width:0%"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="chartbox">
+      <h3>גרף השתפרות</h3>
+      <div id="chart"></div>
+      <div class="legend"><span><i style="background:var(--good)"></i>ציון כללי (אחוז המילים שידעת)</span><span><i style="background:var(--hot)"></i>דיוק בסבב</span></div>
+    </div>
+    <div class="modes">
+      <button class="mode main" id="mClassic"><span class="ic">∞</span><span><h3>משחק רגיל</h3><p id="classicSub">מילה שידעת לא חוזרת. מילה שטעית בה חוזרת אחרי כמה מילים</p></span><span class="go">‹</span></button>
+      <button class="mode" id="mBlitz"><span class="ic blitz">60</span><span><h3>בליץ</h3><p id="blitzSub">כמה מילים אפשר לפצח בדקה?</p></span><span class="go">‹</span></button>
+      <button class="mode" id="mFix"><span class="ic fix">!</span><span><h3>תיקון טעויות</h3><p id="fixSub">אין עדיין טעויות לתקן</p></span><span class="go">‹</span></button>
+    </div>
+    <div class="links">
+      <button class="link" id="toStats">כל המילים וההתקדמות</button>
+      <button class="link" id="sound">צלילים: פועל</button>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section class="screen" id="play">
+    <div class="top">
+      <button class="x" id="quit" aria-label="חזרה לתפריט">✕</button>
+      <div class="pill num" id="score">0</div>
+      <div class="pill streak num" id="streak">🔥 0</div>
+      <div class="spacer"></div>
+      <div class="pill timer num" id="timer" hidden>60</div>
+      <div class="pill num" id="left" hidden></div>
+    </div>
+    <div class="card" id="card">
+      <div class="gain" id="gain">+10</div>
+      <span class="pos" id="pos">n</span>
+      <div class="word en" id="word">ability</div>
+      <div class="hint" id="hint"></div>
+      <form id="form" class="row" style="flex-direction:column;gap:12px" autocomplete="off">
+        <input class="answer" id="answer" type="text" lang="he" dir="rtl" placeholder="מה הפירוש בעברית?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+        <div class="row" id="actRow">
+          <button type="button" class="btn ghost small" id="hintBtn">משפט לדוגמה</button>
+          <button type="button" class="btn ghost small" id="skipBtn">לא יודע</button>
+          <button type="submit" class="btn primary">בדוק</button>
+        </div>
+      </form>
+      <div class="fb" id="fb">
+        <div class="verdict" id="verdict"></div>
+        <div class="meaning" id="meaning"></div>
+        <div class="you" id="you"></div>
+        <div class="row">
+          <button type="button" class="btn ghost" id="override" hidden>צדקתי</button>
+          <button type="button" class="btn primary" id="next">הבא ←</button>
+        </div>
+      </div>
+    </div>
+    <div class="under"><span id="boxInfo"></span><span class="num" id="sessionInfo"></span></div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="result">
+    <h2 id="rTitle">נגמר הזמן!</h2>
+    <div class="big num" id="rScore">0</div>
+    <p class="center" id="rSub"></p>
+    <div class="list" id="rList"></div>
+    <div class="row">
+      <button class="btn ghost" id="rHome">לתפריט</button>
+      <button class="btn primary" id="rAgain">עוד סיבוב</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="screen" id="stats">
+    <div class="top">
+      <button class="x" id="sBack" aria-label="חזרה">✕</button>
+      <h2 style="margin:0;font-size:22px">ההתקדמות שלי</h2>
+    </div>
+    <div class="statgrid" style="grid-template-columns:repeat(3,1fr);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px">
+      <div class="stat"><b class="num" id="sGood" style="color:var(--good)">0</b><small>ידעתי</small></div>
+      <div class="stat"><b class="num" id="sMid" style="color:var(--volt)">0</b><small>לנסות שוב</small></div>
+      <div class="stat"><b class="num" id="sNew">0</b><small>עוד לא ראיתי</small></div>
+    </div>
+    <input class="search" id="sSearch" type="search" placeholder="חיפוש מילה…" dir="auto">
+    <div class="tabs" id="sTabs">
+      <button class="tab on" data-f="all">הכל</button>
+      <button class="tab" data-f="hard">הכי קשות</button>
+      <button class="tab" data-f="mid">לנסות שוב</button>
+      <button class="tab" data-f="good">ידעתי</button>
+      <button class="tab" data-f="new">לא ראיתי</button>
+    </div>
+    <div class="list" id="sList" style="max-height:none;flex:1"></div>
+    <button class="link" id="reset" style="align-self:center">איפוס התקדמות</button>
+  </section>
+</main>
+
+<div class="modal" id="modal"><div class="box">
+  <h3>לאפס את כל ההתקדמות?</h3>
+  <p style="margin:0;color:var(--muted)">כל המילים יחזרו להיות חדשות, וה-XP, השיאים והגרף יימחקו.</p>
+  <div class="row"><button class="btn ghost" id="mNo">ביטול</button><button class="btn" style="background:var(--bad)" id="mYes">כן, לאפס</button></div>
+</div></div>
+
+<script>
+const RAW = [["a good deal","expression","במידה רבה"],["a sense of humor","expression","חוש הומור"],["ability","n","יכולת"],["absent","adj","נעדר"],["absolutely","adv","לגמרי \\ לחלוטין"],["abstract","adj","מופשט"],["academic","adj","אקדמי"],["accept","v","לקבל \\ להסכים"],["accommodation","n","לינה"],["accurate","adj","מדויק"],["act","v","לשחק (דרמה)"],["active","adj","פעיל"],["actual","adj","ממשי"],["adapt","v","להסתגל"],["add","v","להוסיף"],["adopt","v","לאמץ"],["bandage","n","תחבושת"],["barber","n","ספר (שיער)"],["base on","v","לבסס"],["base","n","בסיס \\ תחתית"],["basic","adj","בסיסי"],["basin","n","כיור"],["basis","n","בסיס"],["battle","n","קרב"],["be dying for/to do","expression","משתוקק"],["expecting","expression","מצפה ל"],["be familiar with","expression","להכיר"],["bean","n","שעועית"],["bear","v","לשאת"],["beat","v","להביס"],["become available","v","להפוך להיות זמין"],["bee","n","דבורה"],["beef","n","בקר"],["canal","n","תעלה"],["cancel","v","לבטל"],["candidate","n","מועמד"],["can't help doing","expression","לא יכול שלא"],["capable","adj","מסוגל"],["care","v","לדאוג ל"],["career","n","קריירה"],["carpet","n","שטיח"],["catch attention","expression","למשוך תשומת לב"],["catch up with","expression","להתעדכן עם"],["category","n","קטגוריה"],["cause","v","לגרום"],["celebrity","n","אדם מפורסם"],["central","adj","מרכזי"],["certain","adj","מסוים"],["certainty","n","ודאות"],["chain","n","שרשרת"],["challenge","n","אתגר"],["chance","n","סיכוי"],["change one's mind","expression","לשנות דעה"],["change","v","להמיר מטבע"],["chapter","n","פרק"],["character","n","אופי"],["charity","n","צדקה"],["chart","n","טבלה"],["cheek","n","לחי"],["cheerful","adj","שמח"],["chemistry","n","כימיה"],["chest","n","חזה"],["chewing gum","n","מסטיק"],["chief","adj","עיקרי"],["chin","n","סנטר (פנים)"],["choice","n","בחירה"],["circular","adj","מעגלי"],["circumstance","n","נסיבות"],["citizen","n","אזרח"],["class","n","מעמד"],["clear","adj","פנוי"],["client","n","לקוח"],["climate","n","אקלים"],["close","v","לסגור"],["coast","n","חוף"],["code","n","מערכת כללים"],["colleague","n","עמית"],["collect","v","לאסוף"],["college","n","מכללה"],["column","n","טור"],["combined","adj","משולב"],["debate","n","דיון"],["defend","v","להגן"],["define","v","להגדיר"],["definite","adj","מוחלט \\ ברור"],["degree","n","כמות"],["delete","v","למחוק"],["delicious","adj","טעים"],["democracy","n","דמוקרטיה"],["demonstrate","v","להדגים"],["deny","v","להכחיש"],["depend on","expression","להיות תלוי ב"],["depression","n","דיכאון"],["design","n","עיצוב"],["desire","n","חשק"],["desktop","n","שולחן עבודה"],["despite","connector","למרות"],["detail","n","פרט"],["detective","n","בלש"],["device","n","מכשיר"],["dialogue","n","דו שיח"],["diet","n","תזונה"],["direct","adj","ישיר"],["director","n","מנהל"],["disadvantage","n","חסרון"],["disagree","v","לא להסכים"],["disappoint","v","לאכזב"],["dish","n","מנה"],["display","v","להציג"],["district","n","מחוז"],["dive","v","לצלול"],["divide","v","לחלק"],["do badly","expression","לא להצליח"],["do your best","expression","לעשות את המיטב"],["documentary","n","סרט דוקומנטרי"],["edge","n","קצה"],["effective","adj","יעיל"],["either … or","expression","או.. או.."],["electric","adj","חשמלי"],["elementary","adj","בסיסי"],["emergency","n","מקרה חירום"],["employment","n","תעסוקה"],["encourage","v","לעודד"],["end up","v","לסיים ב \\ למצוא את עצמך ב"],["endless","adj","ללא סוף"],["engineer","n","מהנדס"],["enormous","adj","עצום"],["ensure","v","לוודא"],["entertain","v","לבדר"],["entire","adj","שלם (כולו)"],["evidence","n","ראיה"],["examine","v","לבחון"],["exchange","n","המרה"],["excitement","n","ריגוש"],["excuse","n","תירוץ"],["exhibition","n","תצוגה \\ תערוכה"],["expectation","n","ציפייה"],["experience","n","חוויה"],["experiment","n","ניסוי"],["expert","n","מומחה"],["expression","n","הבעת פנים"],["extent","n","מידה \\ היקף"],["external","adj","חיצוני"],["extra","adv","בנוסף"],["face-to-face","expression","פנים מול פנים"],["facilities","n","מתקנים"],["favor","n","טובה"],["fee","n","תשלום"],["fever","n","חום גבוה (מחלה)"],["few","adj","מעט"],["fiction","n","עלילה בדיונית \\ בדיה"],["fight","v","לריב"],["figure","n","ספרה"],["file","n","קובץ"],["finally","adv","לבסוף"],["find easy","expression","כשמשהו קל"],["flavor","n","טעם (סוג)"],["flow","v","לזרום"],["follower","n","עוקב"],["gather","v","לאסוף"],["get around","expression","להסתדר"],["get rid of","expression","להיפטר מ"],["get to know","expression","להכיר"],["become used to","expression","להתרגל ל"],["get to sleep","expression","ללכת לישון"],["give birth","expression","ללדת"],["goods","n","סחורה"],["grade","n","ציון"],["grant","v","להעניק"],["greet","v","לברך שלום"],["grounds","n","שטח"],["grow","v","לגדל"],["guess","n","ניחוש"],["guilty","adj","אשם"],["haircut","n","תספורת"],["hand in","v","להגיש"],["handle","v","לטפל \\ להתמודד"],["handsome","adj","נאה \\ יפה תואר"],["hang up","v","לנתק (טלפון)"],["have no doubt","v","להיות ללא ספק"],["have no idea","expression","אין מושג"],["have common","expression","יש במשותף"],["headline","n","כותרת"],["heat","n","חום"],["help yourself","expression","להתכבד"],["hire","v","להעסיק"],["historical","adj","היסטורי"],["hit","n","להיט"],["hold your breath","expression","לעצור את הנשימה"],["the Holocaust","n","השואה"],["honest","adj","כן \\ הגון"],["honor","n","כבוד"],["hope to do","expression","מקווה לעשות"],["hot","adj","חריף"],["household","n","משק בית"],["housework","n","מטלות בית"],["I suppose","expression","אני מניח"],["identity","n","זהות"],["in detail","expression","בפרטים"],["in fact","expression","למעשה"],["in general","expression","באופן כללי"],["in order to","expression","כדי"],["in other words","expression","במילים אחרות"],["in particular","expression","במיוחד"],["in spite of","expression","למרות"],["income","n","הכנסה (כסף)"],["indeed","adv","אכן"],["independence","n","עצמאות"],["individual","adj","אישי \\ יחיד"],["influence","v","להשפיע"],["injure","v","לפצוע"],["inner","adj","פנימי"],["insist","v","להתעקש"],["institution","n","מוסד"],["intend","v","להתכוון"],["interested","adj","מעוניין"],["internal","adj","פנימי"],["interview","n","ראיון"],["judge","v","לשפוט"],["keep in touch","expression","לשמור על קשר"],["lab","n","מעבדה"],["label","n","תווית"],["labor","n","עמל (עבודה)"],["ladder","n","סולם"],["lady","n","גברת"],["last","v","להימשך"],["lately","adv","לאחרונה"],["lead","v","להוביל"],["league","n","ליגה"],["lean against/on","expression","להישען על"],["leisure","n","פנאי"],["length","n","אורך"],["link","v","לקשר"],["lioness","n","לביאה"],["literature","n","ספרות"],["loss","n","אובדן"],["low","adj","עמום \\ חלש"],["mad","adj","משוגע"],["major","adj","עיקרי"],["majority","n","רוב"],["make","v","לגרום"],["make friends","expression","להכיר חברים"],["manage","v","לנהל"],["marathon","n","מרתון"],["master","n","מאסטר \\ מומחה"],["match","n","משחק ספורט"],["material","n","חומר"],["mathematics","n","מתמטיקה"],["matter","v","להיות חשוב"],["mean","adj","רשע"],["mean","v","להתכוון"],["meanwhile","adv","בינתיים"],["metal","n","מתכת"],["method","n","שיטה"],["might","modal","עלול"],["mind","v","להיזהר"],["minister","n","שר (ממשלה)"],["minor","adj","שולי \\ פחות חשוב"],["miss","v","להתגעגע"],["miss a chance","expression","לפספס הזדמנות"],["missing","adj","חסר"],["mix","n","ערבוב"],["model","n","דוגמן \\ דוגמנית"],["model","n","דגם"],["motor","n","מנוע"],["myth","n","מיתוס"],["near","prep","קרוב"],["no longer","expression","כבר לא"],["no way","expression","אין מצב"],["novel","n","רומן (ספר)"],["nowhere","adv","באף מקום"],["nuclear","adj","גרעיני"],["obey","v","לציית"],["occasion","n","אירוע"],["occur","v","להתרחש"],["ocean","n","אוקינוס"],["odd","adj","מוזר"],["officer","n","קצין"],["omelette","n","חביתה"],["on purpose","expression","בכוונה"],["on the way to","expression","בדרך ל"],["once again","expression","שוב"],["oppose","v","להתנגד"],["opposite","adj","הפוך"],["order","n","פקודה"],["order","n","סדר"],["original","adj","מקורי"],["originally","adv","במקור"],["ought to","modal","צריך"],["out loud","expression","בקול רם"],["out of","expression","נגמר"],["out of work","expression","אין עבודה"],["outdoors","adv","בחוץ"],["out of date","expression","לא מעודכן"],["oven","n","תנור"],["own","v","להיות בבעלות על"],["pan","n","מחבת"],["parliament","n","פרלמנט (כנסת)"],["partner","n","שותף"],["party","n","מפלגה"],["pass","v","להעביר"],["percent","n","אחוז"],["perfectly","adv","באופן מושלם"],["perform","v","להופיע"],["period","n","נקודה במשפט"],["permanent","adj","קבוע"],["permit","v","להרשות"],["persuade","v","לשכנע"],["photocopy","n","לצלם (מסמך)"],["photographer","n","צלם (מקצוע)"],["phrase","n","ביטוי"],["pie","n","עוגה"],["pile","n","ערימה"],["pipe","n","צינור"],["play","n","מחזה"],["plenty","pron","הרבה"],["plural","n","צורת רבים"],["poet","n","משורר"],["point","n","נקודה"],["point","n","נקודה במשחק"],["politics","n","פוליטיקה"],["poor","adj","מסכן"],["post","v","לפרסם"],["postpone","v","לדחות (מועד)"],["pot","n","סיר"],["power","n","עוצמה"],["power","n","חשמל"],["practical","adj","מעשי"],["presence","n","נוכחות"],["pretty","adv","די"],["previous","adj","הקודם"],["prince","n","נסיך"],["print","v","להדפיס"],["process","n","תהליך"],["profit","n","רווח"],["program","n","תוכנה"],["progress","n","התקדמות"],["pronounce","v","להכריז"],["proper","adj","ראוי"],["property","n","שטח \\ רכוש"],["provide","v","לספק"],["public","adj","ציבור"],["publish","v","להוציא לאור"],["quite a bit","expression","כמות לא קטנה"],["quite a lot","expression","כמות לא קטנה"],["quite a while","expression","זמן מה"],["raise","v","להעלות"],["rare","adj","נדיר"],["rate","n","כמות"],["rate","n","תעריף (כסף)"],["receipt","n","קבלה"],["reception","n","קבלה (מלון)"],["recipe","n","מתכון"],["record","n","שיא"],["recover","v","להחלים"],["refuse","v","לסרב"],["regular","adj","רגיל"],["relative","n","קרוב משפחה"],["relatively","adv","יחסית"],["release","v","לשחרר"],["remind","v","להזכיר"],["report","n","דיווח"],["represent","v","לייצג"],["require","v","לדרוש"],["respond","v","להגיב"],["result in","v","להוביל ל"],["reward","n","פרס"],["ride","v","לרכוב"],["root","n","שורש"],["rose","n","ורד"],["rough","adj","מחוספס"],["route","n","מסלול"],["royal","adj","מלכותי"],["rubber","n","מחק"],["safety","n","בטיחות"],["sail","v","לשוט"],["sale","n","מבצע (מכירה)"],["session","n","מפגש"],["set a date/time","expression","לקבוע מועד"],["set off/set out","expression","לצאת לדרך"],["set the table","expression","לערוך שולחן"],["sew","v","לתפור"],["singular","adj","צורת יחיד"],["site","n","אתר"],["skill","n","מיומנות"],["skin","n","עור"],["sum up","expression","סיכום"],["summary","n","סיכום"],["swear","v","להישבע"],["swear","v","לקלל"],["sweep","v","לטאטא"],["tail","n","זנב"],["take a risk","expression","לקחת סיכון"],["take advantage","expression","לנצל"],["take into account","expression","לקחת בחשבון"],["tear","v","לקרוע"],["thief","n","גנב"],["tournament","n","טורניר"],["track","n","מסלול ריצה"],["trade","n","מסחר"],["tragedy","n","טרגדיה"],["transfer","v","להעביר"],["trash","n","אשפה"],["treasure","n","אוצר"],["treatment","n","יחס"],["triangle","n","משולש"],["tribe","n","שבט"],["underline","v","לסמן בקו תחתון"],["underneath","prep","מתחת"],["undressed","adj","לא לבוש"],["unemployed","adj","מובטל"],["union","n","איחוד"],["unique","adj","ייחודי"],["unlikely","adj","לא סביר"],["unpack","v","לפרוק (ציוד)"],["up-to-date","expression","מעודכן"],["urban","adj","עירוני"],["urgent","adj","דחוף"],["vary","v","לגוון \\ להיות מגוון"],["verse","n","בית בשיר"],["via","prep","דרך \\ באמצעות"],["victim","n","קורבן"],["view","n","נוף"],["visible","adj","נראה לעין"],["vision","n","חזון"],["volume","n","נפח"],["vowel","n","אות ניקוד"],["wealth","n","עושר"],["weigh","v","לשקול (קילוגרם)"],["weird","adj","מוזר"],["whatever","adv","לא משנה מה"],["wheat","n","חיטה"],["wherever","adv","לא משנה איפה"],["wildlife","n","טבע \\ חיי בר"],["will","n","רצון"],["wise","adj","חכם"],["within","adv, prep","בתוך \\ במסגרת כלשהי"],["worthwhile","adj","שווה ערך"],["wrap","v","לעטוף"],["cabin","n","תא באונייה"],["chatty","adj","פטפטן"],["argumentative","adj","וכחן"],["prohibition","n","איסור"],["familiar","adj","ידידותי עד כדי חוצפה"],["dignity","n","כבוד עצמי"],["formality","n","רשמיות"],["doubtless","adv","ללא ספק"],["address","v","לפנות ל"],["conduct","v","לנהל"],["compliment","n","מחמאה"],["indifferent","adj","אדיש"],["resume","v","להמשיך"],["errand","n","סידורים"],["imitation","n","חיקוי"],["hesitate","v","להסס"],["tremble","v","לרעוד"],["headache","n","כאב ראש"],["publications office","n","משרד פרסום"],["editor in chief","n","עורך ראשי"],["edition","n","מהדורה"],["recall","v","להיזכר"],["aisle","n","מעבר (כמו בסופרמרקט)"],["exaggeration","n","הגזמה"],["trial","n","משפט (חוק)"],["peculiar","adj","מוזר"],["depict","v","לתאר"],["herd","n","עדר"],["convey","v","להעביר (מסר)"],["concentration camp","n","מחנה ריכוז"],["exterminate","v","להשמיד"],["restore","v","לשחזר"],["atrocoties","n","זוועות"],["mumble","v","למלמל"],["grin","v","לחייך"],["pressing","adj","דחוף"],["endure","v","לסבול"],["dull","adj","משעמם"],["reprimand","v","לנזוף"],["faculty","n","צוות מורים"],["predictable","adj","צפוי מראש"]];
+const SENT = ["He has changed [[a good deal]] since he started high school — you'd barely recognize him.","My grandpa always laughs at my jokes; he has [[a great sense of humor]].","She has the [[ability]] to solve hard math problems in her head.","Three students were [[absent]] from class today because of the flu.","\"Are you sure?\" \"[[Absolutely]]! I've never been so sure in my life.\"","Love and freedom are [[abstract]] ideas — you can't touch them.","She is very good at [[academic]] subjects like history and physics.","He [[accepted]] the job offer as soon as they called him.","The price of the trip includes flights and [[accommodation]] in a hotel.","The weather app is not always [[accurate]]; yesterday it said sun and it rained.","She wants to [[act]] in movies one day, so she joined the drama club.","My grandmother is 80 but still very [[active]] — she swims every morning.","That's what people think, but the [[actual]] number is much higher.","It took him a few months to [[adapt]] to life in a new country.","If the soup is boring, [[add]] some salt and pepper.","They decided to [[adopt]] a dog from the animal shelter.","The nurse put a [[bandage]] on the cut on his arm.","I go to the [[barber]] every month to cut my hair short.","The movie is [[based on]] a true story.","There is a small crack at the [[base]] of the glass.","You need some [[basic]] computer skills for this job.","After dinner, put the dirty dishes in the [[basin]] and wash them.","Trust is the [[basis]] of every good friendship.","Many soldiers died in the [[battle]].","I'[[m dying to]] see the new Marvel movie!","We're [[expecting]] a lot of guests at the party tonight.","Are you [[familiar with]] this song? Everyone is playing it.","I like rice with [[beans]] and vegetables.","The bridge can [[bear]] the weight of heavy trucks.","Our team [[beat]] the champions 3–0!","Tickets will [[become available]] online next Monday at 10:00.","A [[bee]] stung me while I was eating ice cream in the garden.","This burger is made of 100% [[beef]].","The Suez [[Canal]] connects the Mediterranean Sea and the Red Sea.","The concert was [[cancelled]] because of the storm.","There are three [[candidates]] in the election for class president.","I [[can't help]] laughing every time I see that video.","He is [[capable]] of running 10 kilometers without stopping.","I really [[care]] about my little brother, so I always make sure he's okay.","She wants a [[career]] in medicine and plans to become a doctor.","Take off your shoes — don't walk on the new [[carpet]]!","The bright red car [[caught]] everyone's [[attention]].","I was sick for a week, so I need to [[catch up with]] my classmates on the news.","In the shop, the books are sorted by [[category]]: crime, fantasy, history...","Smoking can [[cause]] serious diseases.","The restaurant is full of [[celebrities]] — I just saw a famous singer!","The hotel is in a [[central]] location, close to everything.","You can only enter the club if you are over a [[certain]] age.","We can't say with [[certainty]] what will happen tomorrow.","She wore a gold [[chain]] around her neck.","Climbing the mountain was a real [[challenge]], but we made it.","There's a good [[chance]] it will rain tomorrow, so take an umbrella.","I wanted pizza, but I [[changed my mind]] and ordered sushi.","Before the trip to London, we went to the bank to [[change]] shekels into pounds.","I read the first [[chapter]] of the book last night.","He has a strong [[character]] — he never gives up.","They give money to [[charity]] to help poor families.","The teacher drew a [[chart]] on the board with everyone's grades.","Her grandma kissed her on the [[cheek]].","She's always smiling and [[cheerful]], even on Mondays.","In [[chemistry]] class we mixed two liquids and the color changed.","He felt a sharp pain in his [[chest]] and went to the doctor.","You can't chew [[chewing gum]] in class!","The [[chief]] reason I took the job was the salary.","He has a small beard on his [[chin]].","You have two options; it's your [[choice]].","The kids sat around the teacher in a [[circular]] shape.","Under no [[circumstances]] should you open the door to strangers.","Every [[citizen]] over 18 has the right to vote.","In the past, people from the upper [[class]] didn't marry poor people.","The road is [[clear]] now — the cars have moved, so we can drive.","The lawyer meets her [[clients]] in her office.","Israel has a hot and dry [[climate]] in the summer.","Please [[close]] the window, it's cold.","We drove along the [[coast]] and stopped at every beach.","The school has a dress [[code]]: no flip-flops.","He gets along well with his [[colleagues]] at work.","My little brother likes to [[collect]] football cards.","After the army, she wants to study at [[college]].","The table has three [[columns]]: name, age and city.","The [[combined]] effort of the whole team won the game.","There was a big [[debate]] in class about school uniforms.","The players worked hard to [[defend]] their goal.","Can you [[define]] the word \"freedom\"?","I need a [[definite]] answer: yes or no?","The new system works with a high [[degree]] of success.","Oops, I accidentally [[deleted]] all my photos.","This chocolate cake is [[delicious]] — can I have another piece?","In a [[democracy]], the people choose their leaders.","The teacher [[demonstrated]] how to solve the equation on the board.","He [[denied]] eating the cookies, but his face was full of chocolate.","Whether we go to the beach [[depends on]] the weather.","After losing his job, he suffered from [[depression]] for months.","I love the [[design]] of the new iPhone — it looks so clean.","I had a sudden [[desire]] for pizza at midnight.","Save the file on your [[desktop]] so you can find it easily.","[[Despite]] the rain, we went to the beach.","Tell me every [[detail]] — what did she say exactly?","The [[detective]] found the killer by following the clues.","A phone is a [[device]] that most people can't live without.","The play is mostly a [[dialogue]] between two old friends.","Athletes need a healthy [[diet]] with lots of protein.","Is there a [[direct]] flight to New York, or do we need to stop in Europe?","The [[director]] of the company gave a speech to all the workers.","The only [[disadvantage]] of the apartment is that there's no elevator.","I [[disagree]] with you — I think the movie was great.","I don't want to [[disappoint]] my parents, so I'm studying hard.","The restaurant's most famous [[dish]] is the spicy chicken.","The museum [[displays]] paintings from the 19th century.","Tel Aviv is in the Central [[District]] of Israel.","We went to Eilat to [[dive]] and see the coral reef.","[[Divide]] the pizza into eight equal pieces.","I [[did badly]] on the test because I didn't study.","It doesn't matter if you win; just [[do your best]].","We watched a [[documentary]] about sharks on Netflix.","Don't stand so close to the [[edge]] of the cliff!","This medicine is very [[effective]] — my headache was gone in ten minutes.","You can [[either]] come with us [[or]] stay at home.","He drives an [[electric]] car, so he never buys gas.","She speaks only [[elementary]] French — just \"hello\" and \"thank you\".","In an [[emergency]], call 101 for an ambulance.","After the army, finding [[employment]] was his top priority.","My coach always [[encourages]] me to keep going.","We got lost and [[ended up]] in a small village.","The list of things to do before the trip seems [[endless]].","He's an [[engineer]] who designs bridges.","The whale was [[enormous]] — bigger than a bus!","Please [[ensure]] that all the windows are closed before you leave.","The clown [[entertained]] the kids at the birthday party.","I spent the [[entire]] day in bed watching series.","The police have no [[evidence]] that he stole the car.","The doctor [[examined]] my knee carefully.","The [[exchange]] rate of dollars to shekels changes every day.","The kids couldn't sleep because of the [[excitement]] before the trip.","\"My dog ate my homework\" is the oldest [[excuse]] in the world.","We saw an [[exhibition]] of modern art at the museum.","The movie was good, but my [[expectations]] were too high.","Traveling alone was an amazing [[experience]].","In the science lab we did an [[experiment]] with magnets.","He's an [[expert]] on computers — ask him anything.","From the [[expression]] on her face, I knew she was angry.","To what [[extent]] do you agree with this idea?","The [[external]] walls of the house are painted white.","I paid [[extra]] to get a seat by the window.","It's better to talk [[face-to-face]] than by text messages.","The school has great sports [[facilities]], like a pool and a gym.","Can you do me a [[favor]] and help me carry these bags?","The entrance [[fee]] to the museum is 50 shekels.","He has a high [[fever]] — 39.5 degrees — so he stayed home.","Very [[few]] people came to the party, only five.","Harry Potter is a work of [[fiction]]; it's not a true story.","My brother and I always [[fight]] about who sits in the front seat.","Write the number using [[figures]], not words: 25, not \"twenty-five\".","I sent you the [[file]] by email — open it on your computer.","We waited for hours, and [[finally]] the bus came.","I [[find]] math [[easy]], but English is harder for me.","Which ice cream [[flavor]] do you want — chocolate or vanilla?","The river [[flows]] into the sea.","She has over a million [[followers]] on Instagram.","We [[gathered]] wood to make a campfire.","I don't speak the language, but I can [[get around]] with English.","I need to [[get rid of]] all these old clothes.","It takes time to [[get to know]] new people.","At first the new school was strange, but I [[became used to]] it.","I was so nervous that I couldn't [[get to sleep]] until 3 a.m.","She [[gave birth]] to twins last week.","The ship carries [[goods]] from China to Europe.","I got a [[grade]] of 95 on my English test!","The university [[granted]] her a scholarship.","The host stood at the door to [[greet]] the guests.","You are not allowed to smoke on school [[grounds]].","My grandpa [[grows]] tomatoes in his garden.","I don't know the answer — take a [[guess]].","The judge decided that he was [[guilty]] and sent him to prison.","Nice [[haircut]]! Did you go to a new barber?","You have to [[hand in]] your project by Sunday.","She knows how to [[handle]] difficult customers.","He's tall, dark and [[handsome]].","She got angry and [[hung up]] the phone on him.","I [[have no doubt]] that you will pass the test.","I [[have no idea]] where I put my keys.","We [[have]] a lot in [[common]] — we both love football and pizza.","The [[headline]] on the front page was about the elections.","I can't sleep in this [[heat]] without an air conditioner.","There's plenty of food — [[help yourself]]!","The company plans to [[hire]] twenty new workers.","Jerusalem has many [[historical]] buildings.","Her new song is a huge [[hit]] — everyone is listening to it.","He [[held his breath]] and jumped into the cold water.","Six million Jews were murdered in [[the Holocaust]].","Please be [[honest]] with me — do you like my drawing?","It's an [[honor]] to meet you, sir.","I [[hope to]] travel to Japan after the army.","Be careful, this pepper is very [[hot]]!","In our [[household]], everyone helps with the cooking.","I hate doing [[housework]] like washing the floor.","\"Are you coming tonight?\" \"[[I suppose]] so, if I finish my homework.\"","The police checked his [[identity]] card.","The teacher explained the topic [[in detail]], step by step.","He says he's not hungry, but [[in fact]] he hasn't eaten all day.","[[In general]], I like school, but some days are hard.","He went to the gym every day [[in order to]] get stronger.","\"I'm a bit short on money.\" \"[[In other words]], you can't pay?\"","I love fruit, [[in particular]] mangoes.","[[In spite of]] the traffic, we arrived on time.","Her [[income]] went up after she got a new job.","It was [[indeed]] the best day of my life.","Israel declared [[independence]] in 1948.","The teacher gives [[individual]] attention to each student.","Social media can [[influence]] how teenagers think.","He [[injured]] his leg in a car accident.","The safe is in the [[inner]] room of the bank.","She [[insisted]] on paying for dinner.","The university is a famous [[institution]].","I [[intend]] to study medicine after the army.","Are you [[interested]] in joining our football team?","The doctor said there was no [[internal]] bleeding.","I have a job [[interview]] tomorrow morning.","Don't [[judge]] a book by its cover.","Let's [[keep in touch]] after school ends!","The scientists work in a [[lab]] full of computers.","Read the [[label]] to see how much sugar is in the drink.","Building the pyramids took years of hard [[labor]].","He climbed the [[ladder]] to fix the roof.","An old [[lady]] asked me to help her cross the street.","The movie [[lasted]] three hours.","I've been very tired [[lately]].","The captain [[led]] the team to victory.","Maccabi plays in the Premier [[League]].","Don't [[lean against]] the door — it might open!","What do you do in your [[leisure]] time? I play guitar.","The [[length]] of the pool is 50 meters.","Scientists have [[linked]] smoking to cancer.","The [[lioness]] protected her cubs from the hyenas.","We read Shakespeare in English [[literature]] class.","The death of his dog was a great [[loss]] for him.","She spoke in a [[low]] voice so the baby wouldn't wake up.","You want to jump from the roof? Are you [[mad]]?","Traffic is a [[major]] problem in Tel Aviv.","The [[majority]] of students voted for the trip to Eilat.","That sad movie always [[makes]] me cry.","It's easy to [[make friends]] at summer camp.","She [[manages]] a team of ten people.","He ran a [[marathon]] — 42 kilometers!","He's a [[master]] of chess; nobody can beat him.","We watched the football [[match]] on TV.","What [[material]] is this shirt made of? Cotton?","[[Mathematics]] is my favorite subject.","It doesn't [[matter]] if we lose; the important thing is to have fun.","Don't be so [[mean]] to your sister — say sorry!","What do you [[mean]] by that?","I'll cook dinner; [[meanwhile]], you set the table.","The fence is made of [[metal]], not wood.","What's the best [[method]] for learning new words?","Take an umbrella; it [[might]] rain.","[[Mind]] the step when you go down the stairs!","The Prime [[Minister]] met with the [[ministers]] of education and health.","It's only a [[minor]] problem — don't worry about it.","I [[miss]] my grandparents who live abroad.","Don't [[miss]] this [[chance]] — tickets are 50% off today only!","One page of the book is [[missing]].","The cake is a [[mix]] of chocolate and vanilla.","She works as a fashion [[model]] in Paris.","This is the newest [[model]] of the car.","The boat's [[motor]] stopped in the middle of the lake.","It's a [[myth]] that you lose most of your body heat through your head.","We live [[near]] the school, so I walk there.","He [[no longer]] lives here; he moved to Haifa.","\"Can I borrow your car?\" \"[[No way]]!\"","\"Harry Potter\" is my favorite [[novel]].","I looked everywhere, but my phone was [[nowhere]] to be found.","Some countries have [[nuclear]] weapons.","Soldiers must [[obey]] orders.","A wedding is a special [[occasion]].","The accident [[occurred]] at 3 p.m.","The Pacific [[Ocean]] is the largest in the world.","It's [[odd]] that he didn't call — he always calls.","The [[officer]] gave orders to the soldiers.","For breakfast I made an [[omelette]] with two eggs and cheese.","He didn't break the glass by mistake; he did it [[on purpose]].","I met an old friend [[on the way to]] school.","[[Once again]], he forgot his homework.","Many parents [[oppose]] the new school hours.","Hot is the [[opposite]] of cold.","The general gave the [[order]] to attack.","Put the words in alphabetical [[order]].","Is this the [[original]] painting or a copy?","[[Originally]], he wanted to be a doctor, but he became a pilot.","You [[ought to]] apologize to her.","Read the poem [[out loud]] so everyone can hear.","We're [[out of]] milk; can you buy some?","My uncle has been [[out of work]] since the factory closed.","The kids love playing [[outdoors]] when the weather is nice.","This map is [[out of date]] — that road doesn't exist anymore.","Bake the cake in the [[oven]] for 40 minutes.","They [[own]] a small restaurant in Jaffa.","Fry the eggs in a [[pan]] with a little oil.","The British [[Parliament]] voted on the new law.","He and his [[partner]] opened a business together.","Which political [[party]] will win the election?","Can you [[pass]] me the salt, please?","Ninety [[percent]] of the class passed the test.","The dress fits you [[perfectly]].","The band will [[perform]] in Tel Aviv next month.","Every sentence in English ends with a [[period]].","She got a [[permanent]] job, not just for the summer.","My parents don't [[permit]] me to stay out after midnight.","I tried to [[persuade]] my dad to buy me a new phone.","Can you make a [[photocopy]] of my passport?","The wedding [[photographer]] took hundreds of pictures.","\"Break a leg\" is a [[phrase]] that means \"good luck\".","Grandma baked an apple [[pie]] for dessert.","There's a [[pile]] of dirty clothes on his floor.","Water was leaking from a broken [[pipe]] under the sink.","We went to see a [[play]] at the theater.","Don't worry, we have [[plenty]] of food for everyone.","The [[plural]] of \"child\" is \"children\".","Bialik was a famous Hebrew [[poet]].","Draw a line from [[point]] A to [[point]] B.","Our team won by three [[points]].","He's not interested in [[politics]] — he never watches the news.","The [[poor]] dog was left outside in the rain all night.","She [[posted]] a photo of her new puppy on Instagram.","The meeting has been [[postponed]] to next week.","Cook the soup in a big [[pot]].","The [[power]] of the wave knocked him over.","There was a storm, and the [[power]] went out for three hours.","We need a [[practical]] solution, not just ideas.","Your [[presence]] at the meeting is important.","The test was [[pretty]] easy — I finished in twenty minutes.","I liked his [[previous]] album more than the new one.","The [[prince]] will be king one day.","Can you [[print]] the tickets for me?","Learning a language is a long [[process]].","The company made a big [[profit]] this year.","I downloaded a new [[program]] for editing videos.","You've made great [[progress]] in English this year!","The judges will [[pronounce]] the winner at the end of the show.","You need [[proper]] shoes for hiking, not sandals.","This land is private [[property]] — no entry!","The school [[provides]] free lunch for all students.","The [[public]] has the right to know the truth.","Her first book was [[published]] when she was 20.","He spent [[quite a bit]] of money on his new bike.","I've learned [[quite a lot]] of new words this week.","I waited [[quite a while]] before the doctor called me in.","[[Raise]] your hand if you know the answer.","This bird is very [[rare]] — there are only 100 left.","The birth [[rate]] in Israel is higher than in Europe.","The hotel's [[rate]] is 500 shekels per night.","Keep the [[receipt]] in case you want to return the shirt.","Leave your key at the [[reception]] when you leave the hotel.","Can you give me the [[recipe]] for this cake?","Usain Bolt holds the world [[record]] for the 100 meters.","It took him a month to [[recover]] from the surgery.","He [[refused]] to eat his vegetables.","It was just a [[regular]] day — nothing special happened.","All our [[relatives]] came to the wedding: uncles, aunts and cousins.","The test was [[relatively]] easy compared to last time.","They [[released]] the bird from the cage.","[[Remind]] me to call grandma tomorrow.","I read a [[report]] about the accident in the newspaper.","She will [[represent]] our school in the competition.","This job [[requires]] good English.","He didn't [[respond]] to my message.","The storm [[resulted in]] a lot of damage.","The police offered a [[reward]] for information about the thief.","Can you [[ride]] a horse?","The tree's [[roots]] go deep into the ground.","He gave her a red [[rose]] on Valentine's Day.","The wall feels [[rough]] — be careful with your hands.","We took the shortest [[route]] to the airport.","The [[royal]] family lives in Buckingham Palace.","I made a mistake with my pencil, so I used a [[rubber]] to fix it.","For your [[safety]], wear a seatbelt.","We [[sailed]] across the lake in a small boat.","There's a big [[sale]] at the mall — everything is 50% off!","Our first training [[session]] is on Sunday.","Let's [[set a date]] for the party.","We [[set off]] early in the morning to beat the traffic.","Can you [[set the table]]? Dinner is ready.","My grandma [[sewed]] a button back onto my shirt.","\"Mouse\" is [[singular]] and \"mice\" is plural.","They are building a new mall on this [[site]].","Communication is an important [[skill]] in any job.","Use sunscreen to protect your [[skin]].","To [[sum up]], we need more time and more money.","Write a short [[summary]] of the story — no more than five lines.","I [[swear]] I didn't take your phone!","Don't [[swear]] in front of the kids — it's not nice language.","Can you [[sweep]] the floor? There's sand everywhere.","The dog wags its [[tail]] when it's happy.","Starting your own business means you have to [[take a risk]].","[[Take advantage]] of the sunny weather and go to the beach.","When you plan the trip, [[take into account]] the traffic.","Be careful not to [[tear]] the page.","The [[thief]] stole her bag and ran away.","Our school won the basketball [[tournament]].","The runners went around the [[track]] four times.","[[Trade]] between Israel and China has grown.","The death of the young singer was a [[tragedy]].","Can you [[transfer]] the money to my bank account?","Please throw the [[trash]] in the bin.","The pirates buried their [[treasure]] on the island.","I didn't like the [[treatment]] I got from the waiter — he was so rude.","A [[triangle]] has three sides.","The [[tribe]] has lived in the Amazon forest for hundreds of years.","[[Underline]] the important words in the text.","The cat is hiding [[underneath]] the bed.","Knock first — I'm [[undressed]]!","My uncle lost his job and has been [[unemployed]] for six months.","The European [[Union]] has 27 countries.","Every person's fingerprint is [[unique]].","It's [[unlikely]] to snow in Tel Aviv.","When we got to the hotel, we [[unpacked]] our suitcases.","I check the news to stay [[up-to-date]].","More and more people live in [[urban]] areas, not villages.","Call the doctor — it's [[urgent]]!","Prices [[vary]] from store to store.","Let's sing the first [[verse]] of the song again.","We flew to New York [[via]] London.","He was the [[victim]] of a robbery.","The room has an amazing [[view]] of the sea.","The stars are [[visible]] only at night.","Herzl had a [[vision]] of a Jewish state.","Turn up the [[volume]] — I can't hear the music.","A, E, I, O and U are [[vowels]].","The family's [[wealth]] comes from oil.","How much do you [[weigh]]? About 70 kilos?","He wears [[weird]] clothes — socks over his shoes!","[[Whatever]] happens, I'll always be your friend.","Bread is made from [[wheat]] flour.","My dog follows me [[wherever]] I go.","Africa is famous for its [[wildlife]]: lions, elephants and giraffes.","He has a strong [[will]] to succeed.","My grandfather is a [[wise]] man; he always gives good advice.","You must finish the job [[within]] two hours.","The trip was expensive, but it was [[worthwhile]].","Let's [[wrap]] the present in colorful paper.","We slept in a small [[cabin]] on the ship.","She's very [[chatty]] — she talks all the time.","He's so [[argumentative]] — he disagrees with everything I say.","There is a [[prohibition]] on smoking in public buildings.","I just met him, but he was very [[familiar]] with me, as if we were old friends — it was rude.","Even when he lost everything, he kept his [[dignity]].","Signing the form is just a [[formality]] — you already got the job.","He is [[doubtless]] the best player on the team.","The principal [[addressed]] the students at the ceremony.","The scientists [[conducted]] an experiment.","She gave me a nice [[compliment]] about my new shoes.","He's completely [[indifferent]] to politics; he doesn't care who wins.","After a short break, the game [[resumed]].","I have some [[errands]] to run: the bank, the post office and the supermarket.","This isn't a real diamond — it's an [[imitation]].","If you need help, don't [[hesitate]] to ask.","Her hands were [[trembling]] because of the cold.","I have a terrible [[headache]] — do you have a pill?","She works at the [[publications office]] of the university, preparing its brochures.","The [[editor in chief]] decides what goes on the front page.","The new [[edition]] of the book has more pictures.","I can't [[recall]] her name — what was it?","The cereal is in [[aisle]] 5 of the supermarket.","\"I've told you a million times\" is an [[exaggeration]].","The [[trial]] lasted three months, and the judge found him guilty.","There's a [[peculiar]] smell in the kitchen.","The painting [[depicts]] a family having dinner.","A [[herd]] of cows was blocking the road.","It's hard to [[convey]] my feelings in words.","Auschwitz was the largest Nazi [[concentration camp]].","The farmer used poison to [[exterminate]] the rats.","They [[restored]] the old building to how it looked 100 years ago.","The world must never forget the [[atrocities]] of the Holocaust.","Stop [[mumbling]] — I can't understand what you're saying!","He [[grinned]] when he saw his test score.","Climate change is a [[pressing]] problem that we must deal with now.","She had to [[endure]] a lot of pain after the accident.","The lecture was so [[dull]] that half the class fell asleep.","The teacher [[reprimanded]] him for being late again.","The [[faculty]] of the school met to discuss the new schedule.","The movie was so [[predictable]] — I knew the ending after ten minutes."];
+const TEST_DATE = new Date(2026, 10, 18);
+const POS = {n:'שם עצם',v:'פועל',adj:'שם תואר',adv:'תואר הפועל',expression:'ביטוי',prep:'מילת יחס',modal:'פועל עזר',connector:'מילת קישור',pron:'כינוי',"adv, prep":'תואר הפועל / מילת יחס'};
+const RANKS = [[0,'ROOKIE'],[150,'GRINDER'],[400,'SKILLED'],[800,'PRO'],[1400,'BEAST'],[2200,'ELITE'],[3200,'LEGEND'],[4500,'GOAT']];
+const GAP_MIN = 4, GAP_MAX = 9;   // a missed word comes back after 4-9 other words
+const KEY = 'wordrush-v2';
+
+const WORDS = RAW.map((r,i)=>({i,en:r[0],pos:r[1],he:r[2],ex:SENT[i]}));
+const byEn = {};
+WORDS.forEach(w=>{const k=w.en.toLowerCase();(byEn[k]=byEn[k]||[]).push(w)});
+
+// ---------- state ----------
+// w[i] = {s: times shown, x: times wrong, d: 1 once answered right (never shown again)}
+// log = one entry per round: {t, n, right, known}
+let S = {w:{},xp:0,bestStreak:0,bestBlitz:0,sound:true,log:[]};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.w)S=Object.assign(S,s)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const st = i => S.w[i] || (S.w[i]={s:0,x:0,d:0});
+const status = i => {const r=S.w[i];if(!r||!r.s)return 'new';return r.d?'good':'mid'};
+const known = () => WORDS.reduce((a,w)=>a+(S.w[w.i]&&S.w[w.i].d?1:0),0);
+const scoreOf = k => Math.round(k/WORDS.length*100);
+
+// ---------- Hebrew answer matching ----------
+const FINALS={'ך':'כ','ם':'מ','ן':'נ','ף':'פ','ץ':'צ'};
+function norm(s){
+  return s.replace(/[֑-ׇ]/g,'').replace(/[ךםןףץ]/g,c=>FINALS[c])
+    .replace(/["'׳״`.!?:\-–—_()[\]]/g,' ').replace(/\s+/g,' ').trim();
+}
+const NEG=new Set(['לא','אין','בלי','ללא']);
+const stripW = w => (w.length>3 && /^[הלו]/.test(w)) ? w.slice(1) : w;
+const core = s => s.split(' ').map(stripW).join(' ');
+function variants(he){
+  const out=new Set();
+  he.split(/[\\\/,;]|\sאו\s/).forEach(p=>{
+    p=p.trim(); if(!p) return;
+    out.add(norm(p.replace(/\([^)]*\)/g,' ')));
+    out.add(norm(p));
+  });
+  return [...out].filter(Boolean);
+}
+function lev(a,b){
+  if(a===b) return 0;
+  const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1))}prev=cur}
+  return prev[n];
+}
+function compare(u,a){ // 2 exact, 1 typo, 0 no
+  if(!u||!a) return 0;
+  if(u===a || core(u)===core(a)) return 2;
+  const uw=u.split(' '), aw=a.split(' ');
+  const uc=new Set(uw.map(stripW)), ac=new Set(aw.map(stripW));
+  if(uw.length<aw.length && uw.every(w=>ac.has(stripW(w))) && !aw.some(w=>NEG.has(w)&&!uw.includes(w)) && u.replace(/ /g,'').length>=3) return 2;
+  if(aw.every(w=>uc.has(stripW(w))) && !uw.some(w=>NEG.has(w)&&!aw.includes(w))) return 2;
+  const L=Math.max(u.length,a.length), d=Math.min(lev(u,a),lev(core(u),core(a)));
+  if((L>=4&&d<=1)||(L>=7&&d<=2)) return 1;
+  return 0;
+}
+function grade(input, w){
+  const parts=input.split(/[,\\\/;]|\sאו\s/).map(norm).filter(Boolean);
+  if(!parts.length) return {r:0};
+  let best={r:0};
+  const pool=[w,...byEn[w.en.toLowerCase()].filter(o=>o!==w)];
+  for(const ww of pool) for(const a of variants(ww.he)) for(const p of parts){
+    const r=compare(p,a); if(r>best.r) best={r,via:ww};
+    if(best.r===2) return best;
+  }
+  return best;
+}
+
+// ---------- scheduling ----------
+// fresh = words not shown yet in random order; retry = missed words, each with the card number it is due at
+const rnd = (a,b) => a+Math.floor(Math.random()*(b-a+1));
+function shuffle(a){for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a}
+function nextWord(){
+  if(G.retry.length){
+    G.retry.sort((a,b)=>a.due-b.due);
+    if(G.retry[0].due<=G.n || !G.fresh.length) return G.retry.shift().i;
+  }
+  return G.fresh.length ? G.fresh.pop() : null;
+}
+
+// ---------- sound / fx ----------
+let ac;
+function tone(freqs,dur=.09,type='square',vol=.06){
+  if(!S.sound) return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    freqs.forEach((f,k)=>{const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+      const t=ac.currentTime+k*dur;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur*1.6);
+      o.connect(g).connect(ac.destination);o.start(t);o.stop(t+dur*1.7)});
+  }catch(e){}
+}
+const sfx={good:()=>tone([660,880]),close:()=>tone([520,700]),bad:()=>tone([220,160],.14,'sawtooth',.05),
+  big:()=>tone([523,659,784,1047],.08),tick:()=>tone([1200],.03,'square',.03)};
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
+
+const cv=document.getElementById('fx'),cx=cv.getContext('2d');let parts=[],raf=0;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function burst(n,x,y){
+  if(reduce) return;
+  cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;
+  const cols=['#ff5a36','#ffd23f','#2ee59d','#eef0ff','#ff8a3d'];
+  for(let k=0;k<n;k++){const a=Math.random()*Math.PI*2,v=4+Math.random()*9;
+    parts.push({x:x*devicePixelRatio,y:y*devicePixelRatio,vx:Math.cos(a)*v,vy:Math.sin(a)*v-6,s:4+Math.random()*6,c:cols[k%cols.length],l:60+Math.random()*30,r:Math.random()*6})}
+  if(!raf) loop();
+}
+function loop(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.35;p.vx*=.99;p.l--;p.r+=.2;
+    cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.globalAlpha=Math.max(0,Math.min(1,p.l/30));cx.fillStyle=p.c;cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);cx.restore()});
+  parts=parts.filter(p=>p.l>0&&p.y<cv.height+40);
+  raf=parts.length?requestAnimationFrame(loop):0;
+  if(!raf) cx.clearRect(0,0,cv.width,cv.height);
+}
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('on'),1800)}
+
+// ---------- UI helpers ----------
+const $=id=>document.getElementById(id);
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));scrollTo(0,0)}
+function rankOf(xp){let k=0;RANKS.forEach((r,j)=>{if(xp>=r[0])k=j});const nxt=RANKS[k+1];
+  return {name:RANKS[k][1],pct:nxt?((xp-RANKS[k][0])/(nxt[0]-RANKS[k][0]))*100:100,next:nxt}}
+function counts(){let g=0,m=0,n=0;WORDS.forEach(w=>{const s=status(w.i);s==='good'?g++:s==='mid'?m++:n++});return {g,m,n}}
+const missedPool = () => WORDS.filter(w=>status(w.i)==='mid').map(w=>w.i);
+const openPool = () => WORDS.filter(w=>status(w.i)!=='good').map(w=>w.i);
+
+function chart(){
+  const log=S.log.filter(e=>e.n>0).slice(-30);
+  if(!log.length){$('chart').innerHTML='<div class="empty">הגרף יתחיל להתמלא אחרי הסבב הראשון</div>';return}
+  const W=320,H=150,pl=28,pr=8,pt=10,pb=22,iw=W-pl-pr,ih=H-pt-pb;
+  const n=log.length, step=iw/Math.max(n,1), bw=Math.min(18,step*.55);
+  const y=v=>pt+ih-(v/100)*ih;
+  const xc=k=>pl+step*k+step/2;
+  let g='';
+  [0,25,50,75,100].forEach(v=>{g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="#2a3058" stroke-width="1"/><text x="${pl-6}" y="${y(v)+4}" fill="#8b91bd" font-size="10" text-anchor="end">${v}</text>`});
+  log.forEach((e,k)=>{const acc=Math.round(e.right/e.n*100);
+    g+=`<rect x="${xc(k)-bw/2}" y="${y(acc)}" width="${bw}" height="${pt+ih-y(acc)}" rx="3" fill="#ff5a36" opacity=".55"><title>סבב ${k+1}: דיוק ${acc}%</title></rect>`});
+  const pts=log.map((e,k)=>[xc(k),y(scoreOf(e.known))]);
+  if(n>1){
+    g+=`<path d="M${pts[0][0]},${pt+ih} ${pts.map(p=>'L'+p[0]+','+p[1]).join(' ')} L${pts[n-1][0]},${pt+ih}Z" fill="#2ee59d" opacity=".12"/>`;
+    g+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#2ee59d" stroke-width="2.5" stroke-linejoin="round"/>`;
+  }
+  const last=pts[n-1], lastScore=scoreOf(log[n-1].known);
+  g+=`<circle cx="${last[0]}" cy="${last[1]}" r="4.5" fill="#2ee59d" stroke="#171b33" stroke-width="2"/>`;
+  g+=`<text x="${Math.min(last[0],W-pr-4)}" y="${Math.max(last[1]-9,pt+8)}" fill="#2ee59d" font-size="12" font-weight="700" text-anchor="end">${lastScore}</text>`;
+  g+=`<text x="${xc(0)}" y="${H-6}" fill="#8b91bd" font-size="10" text-anchor="middle">סבב 1</text>`;
+  if(n>1) g+=`<text x="${xc(n-1)}" y="${H-6}" fill="#8b91bd" font-size="10" text-anchor="middle">סבב ${S.log.filter(e=>e.n>0).length}</text>`;
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ציון כללי ודיוק לפי סבב" style="direction:ltr">${g}</svg>`;
+}
+
+function renderHome(){
+  const c=counts(), k=c.g, sc=scoreOf(k);
+  $('hScore').textContent=sc;
+  $('hMastered').textContent=k;
+  $('ringArc').style.strokeDashoffset=326.7*(1-k/WORDS.length);
+  $('hStreak').textContent=S.bestStreak;
+  const rk=rankOf(S.xp);
+  $('hRank').textContent=rk.name;
+  $('hXp').textContent=rk.next?`${S.xp} / ${rk.next[0]} XP`:`${S.xp} XP`;
+  $('hBar').style.width=rk.pct+'%';
+  const f=c.m;
+  $('fixSub').textContent=f?`${f} מילים שטעית בהן מחכות לך`:'אין עדיין טעויות לתקן';
+  $('mFix').disabled=!f;
+  $('blitzSub').textContent=S.bestBlitz?`כמה מילים אפשר לפצח בדקה? השיא שלך: ${S.bestBlitz}`:'כמה מילים אפשר לפצח בדקה?';
+  $('classicSub').textContent=c.g===WORDS.length?'ידעת את כל המילים! 🏆':`נשארו ${WORDS.length-c.g} מילים. מילה שידעת לא חוזרת`;
+  $('mClassic').disabled=c.g===WORDS.length;
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=Math.round((TEST_DATE-today)/864e5);
+  $('countdown').textContent=d>1?`עוד ${d} ימים למבחן`:d===1?'המבחן מחר!':d===0?'היום המבחן. בהצלחה!':'המבחן עבר. אפשר להמשיך לתרגל';
+  $('sound').textContent='צלילים: '+(S.sound?'פועל':'כבוי');
+  chart();
+}
+
+// ---------- game ----------
+let G=null;
+function start(mode){
+  let pool = mode==='fix' ? missedPool() : openPool();
+  if(mode==='blitz' && !pool.length) pool = WORDS.map(w=>w.i);
+  const fresh=[], retry=[];
+  // words he already missed in earlier rounds are spread through the round, not stacked at the start
+  pool.forEach(i=>{ if(mode!=='fix' && status(i)==='mid') retry.push({i,due:rnd(2,25)}); else fresh.push(i) });
+  if(mode==='fix'){ shuffle(fresh); }
+  G={mode,score:0,streak:0,n:0,right:0,missed:[],fresh:shuffle(fresh),retry,cur:null,hint:false,done:false,time:60,
+     log:{t:Date.now(),n:0,right:0,known:known()}};
+  S.log.push(G.log);
+  $('timer').hidden=mode!=='blitz';
+  $('left').hidden=mode!=='fix';
+  clearInterval(G.iv);
+  if(mode==='blitz'){
+    $('timer').textContent=60;$('timer').classList.remove('low');
+    G.iv=setInterval(()=>{G.time--;$('timer').textContent=G.time;
+      if(G.time<=10){$('timer').classList.add('low');sfx.tick()}
+      if(G.time<=0) end()},1000);
+  }
+  show('play');
+  next();
+}
+function mult(){return Math.min(5,1+Math.floor(G.streak/5))}
+function hud(){
+  $('score').textContent=G.score;
+  const m=mult();
+  $('streak').innerHTML=`🔥 ${G.streak}`+(m>1?` <span class="mult">x${m}</span>`:'');
+  $('streak').classList.toggle('hot',G.streak>=5);
+  if(G.mode==='fix') $('left').textContent=`נשארו ${G.fresh.length+G.retry.length+(G.done||!G.cur?0:1)}`;
+  $('sessionInfo').textContent=G.n?`${G.right}/${G.n} נכונות`:'';
+}
+function next(){
+  const i=nextWord();
+  if(i===null) return end(true);
+  G.cur=WORDS[i]; G.hint=false; G.done=false;
+  $('word').textContent=G.cur.en;
+  $('pos').textContent=POS[G.cur.pos]||G.cur.pos;
+  $('hint').classList.remove('on'); $('hint').innerHTML='';
+  $('hintBtn').disabled=false;
+  $('answer').value='';
+  $('actRow').style.display='';
+  $('fb').classList.remove('on');
+  $('card').className='card';
+  const r=S.w[i];
+  $('boxInfo').textContent=!r||!r.s?'מילה חדשה':`ניסיון חוזר · טעית בה ${r.x} ${r.x===1?'פעם':'פעמים'}`;
+  hud();
+  $('answer').focus();
+}
+function doHint(){
+  if(G.done||G.hint) return;
+  G.hint=true;
+  const h=esc(G.cur.ex).replace(/\[\[(.+?)\]\]/g,'<mark>$1</mark>');
+  $('hint').innerHTML=`<small>משפט לדוגמה (חצי נקודות)</small>${h}`;
+  $('hint').classList.add('on');
+  $('hintBtn').disabled=true;
+  $('answer').focus();
+}
+function meaningsHTML(w){
+  const others=byEn[w.en.toLowerCase()].filter(o=>o!==w);
+  return `${esc(w.he.replace(/\\/g,' / '))}`+(others.length?`<small>גם: ${others.map(o=>esc(o.he)).join(' / ')}</small>`:'');
+}
+function submit(e){
+  e&&e.preventDefault();
+  if(G.done) return goNext();
+  const val=$('answer').value.trim();
+  if(!val){$('card').classList.remove('shake');void $('card').offsetWidth;$('card').classList.add('shake');return}
+  const g=grade(val,G.cur);
+  resolve(g.r, val, g.via);
+}
+function resolve(r,val,via){
+  G.done=true; G.n++; G.log.n++;
+  const w=G.cur, rec=st(w.i);
+  rec.s++;
+  $('actRow').style.display='none';
+  $('fb').classList.add('on');
+  $('override').hidden=true;
+  const card=$('card');
+  if(r>0){
+    G.right++; G.log.right++; G.streak++; rec.d=1;
+    const base=r===2?10:8, pts=Math.round(base*mult()*(G.hint?.5:1));
+    G.score+=pts; S.xp+=pts;
+    card.classList.add('good','pop');
+    $('verdict').className='verdict '+(r===2?'good':'close');
+    $('verdict').textContent=r===2?pickOne(['נכון!','בול!','יש!','מטורף!','קלאסי!']):'כמעט מושלם!';
+    $('you').innerHTML=r===1?`כתבת: ${esc(val)} · הכתיב הנכון למעלה`:(via&&via!==w?'זה פירוש נכון נוסף של המילה':'');
+    const gain=$('gain');gain.textContent='+'+pts;gain.classList.remove('go');void gain.offsetWidth;gain.classList.add('go');
+    (r===2?sfx.good:sfx.close)();
+    const rc=card.getBoundingClientRect();
+    if(G.streak%10===0){burst(140,innerWidth/2,rc.top+40);sfx.big();toast(`רצף של ${G.streak}! 🔥`)}
+    else burst(26,rc.left+rc.width/2,rc.top+60);
+    if(G.streak>S.bestStreak) S.bestStreak=G.streak;
+  }else{
+    G.streak=0; rec.x++;
+    if(!G.missed.includes(w.i)) G.missed.push(w.i);
+    G.retry.push({i:w.i,due:G.n+rnd(GAP_MIN,GAP_MAX)});
+    card.classList.add('bad','shake');
+    $('verdict').className='verdict bad';
+    $('verdict').textContent=val?'לא הפעם':'הנה התשובה';
+    $('you').innerHTML=(val?`כתבת: <s>${esc(val)}</s> · `:'')+'המילה תחזור עוד כמה מילים';
+    $('override').hidden=!val;
+    sfx.bad(); buzz(120);
+  }
+  G.log.known=known();
+  $('meaning').innerHTML=meaningsHTML(w);
+  save(); hud(); checkRank();
+  if(G.mode==='blitz'){clearTimeout(G.auto);G.auto=setTimeout(goNext,r>0?650:1600)}
+}
+let lastRank=rankOf(S.xp).name;
+function checkRank(){const n=rankOf(S.xp).name;if(n!==lastRank){lastRank=n;toast(`עלית דרגה: ${n}`);sfx.big();burst(160,innerWidth/2,innerHeight/3)}}
+function override(){
+  // he says his answer was right: undo the miss and count it as correct
+  const w=G.cur, rec=st(w.i);
+  rec.x=Math.max(0,rec.x-1); rec.s--; G.n--; G.log.n--;
+  G.missed=G.missed.filter(i=>i!==w.i);
+  G.retry=G.retry.filter(o=>o.i!==w.i);
+  resolve(2,$('answer').value.trim(),w);
+}
+function goNext(){clearTimeout(G.auto);if(G.mode==='blitz'&&G.time<=0)return;next()}
+function end(allDone){
+  clearInterval(G.iv);clearTimeout(G.auto);
+  if(!G.log.n) S.log=S.log.filter(e=>e!==G.log);
+  let title,sub;
+  const tail=` · ציון כללי: ${scoreOf(known())}`;
+  if(G.mode==='blitz'){
+    const rec=G.score>S.bestBlitz&&G.score>0; if(rec) S.bestBlitz=G.score;
+    title=allDone?'עברת על הכל!':rec?'שיא חדש!':'נגמר הזמן!';
+    sub=`${G.right} נכונות מתוך ${G.n}`+(rec?'':` · השיא שלך: ${S.bestBlitz}`);
+    if(rec){burst(200,innerWidth/2,innerHeight/3);sfx.big()}
+  }else if(allDone){
+    title=G.mode==='fix'?'כל הטעויות תוקנו!':'ידעת את כל 480 המילים!';
+    sub=`${G.right} נכונות מתוך ${G.n}`+tail;burst(220,innerWidth/2,innerHeight/3);sfx.big();
+  }else{
+    title='סיכום סבב';sub=G.n?`${G.right} נכונות מתוך ${G.n}`+tail:'לא ענית על אף מילה';
+  }
+  save();
+  $('rTitle').textContent=title;$('rScore').textContent=G.score;$('rSub').textContent=sub;
+  const still=G.missed.filter(i=>status(i)==='mid');
+  $('rList').innerHTML=still.length?`<div class="li" style="color:var(--muted)"><span>עוד לא ידעת</span><span></span></div>`+
+    still.map(i=>`<div class="li"><span class="en">${esc(WORDS[i].en)}</span><span>${esc(WORDS[i].he.replace(/\\/g,' / '))}</span></div>`).join(''):'<div class="li"><span>אין מילים פתוחות מהסבב הזה 💪</span><span></span></div>';
+  $('rList').style.display=G.n?'':'none';
+  show('result');
+}
+
+// ---------- stats ----------
+let filter='all';
+function renderStats(){
+  const c=counts();$('sGood').textContent=c.g;$('sMid').textContent=c.m;$('sNew').textContent=c.n;
+  const q=$('sSearch').value.trim().toLowerCase();
+  let list=WORDS.filter(w=>{const s=status(w.i);
+    if(filter==='hard') return (S.w[w.i]||{}).x>0;
+    if(filter!=='all'&&s!==filter) return false; return true});
+  if(q) list=list.filter(w=>w.en.toLowerCase().includes(q)||w.he.includes(q));
+  if(filter==='hard') list.sort((a,b)=>S.w[b.i].x-S.w[a.i].x);
+  const col={good:'var(--good)',mid:'var(--volt)',new:'var(--line)'};
+  $('sList').innerHTML=list.length?list.map(w=>{const s=status(w.i),r=S.w[w.i];
+    return `<div class="li"><span><i class="dot" style="background:${col[s]}"></i><span class="en">${esc(w.en)}</span>${filter==='hard'?` <small style="color:var(--bad)">×${r.x}</small>`:''}</span><span>${esc(w.he.replace(/\\/g,' / '))}</span></div>`}).join('')
+    :'<div class="li"><span style="color:var(--muted)">אין מילים ברשימה הזו</span><span></span></div>';
+}
+
+function pickOne(a){return a[Math.floor(Math.random()*a.length)]}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+// ---------- wiring ----------
+$('mClassic').onclick=()=>start('classic');
+$('mBlitz').onclick=()=>start('blitz');
+$('mFix').onclick=()=>start('fix');
+$('form').onsubmit=submit;
+$('next').onclick=goNext;
+$('hintBtn').onclick=doHint;
+$('skipBtn').onclick=()=>{if(!G.done)resolve(0,'')};
+$('override').onclick=override;
+$('quit').onclick=()=>{if(G&&G.n&&G.mode!=='blitz')end(false);else{if(G){clearInterval(G.iv);if(!G.log.n)S.log=S.log.filter(e=>e!==G.log);save()}renderHome();show('home')}};
+$('rHome').onclick=()=>{renderHome();show('home')};
+$('rAgain').onclick=()=>{const m=G.mode==='fix'&&!missedPool().length?'classic':G.mode;if(m==='classic'&&!openPool().length){renderHome();show('home')}else start(m)};
+$('toStats').onclick=()=>{renderStats();show('stats')};
+$('sBack').onclick=()=>{renderHome();show('home')};
+$('sSearch').oninput=renderStats;
+$('sTabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;filter=b.dataset.f;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t===b));renderStats()};
+$('sound').onclick=()=>{S.sound=!S.sound;save();renderHome();if(S.sound)sfx.good()};
+$('reset').onclick=()=>$('modal').classList.add('on');
+$('mNo').onclick=()=>$('modal').classList.remove('on');
+$('mYes').onclick=()=>{S={w:{},xp:0,bestStreak:0,bestBlitz:0,sound:S.sound,log:[]};lastRank='ROOKIE';save();$('modal').classList.remove('on');renderStats();toast('ההתקדמות אופסה')};
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&G&&G.done&&$('play').classList.contains('on')&&!(document.activeElement&&/INPUT|BUTTON/.test(document.activeElement.tagName))){e.preventDefault();goNext()}});
+renderHome();
+</script>
+
+</body>
+</html>
